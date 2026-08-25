@@ -358,13 +358,11 @@
   }
 
   // ---------- storage ----------
-  // Tier 1: window.storage — Claude's artifact storage, used when this page
-  //         is open inside Claude (web/app).
-  // Tier 2: localStorage — the browser's own on-device storage, used when
+  // Tier 1: localStorage — the browser's own on-device storage, used when
   //         this file is saved and opened directly (offline, outside
   //         Claude, on iOS or Android). This is what makes entries survive
   //         closing the tab/app.
-  // Tier 3: in-memory only, if a browser is actively blocking storage
+  // Tier 2: in-memory only, if a browser is actively blocking storage
   //         (e.g. private browsing) — still works as a calculator, just
   //         won't remember entries after the tab closes.
   var LS_BREAKS_KEY = 'shiftlog_breaks_v1';
@@ -472,7 +470,7 @@
     row.id = 'entry-' + entry.id;
     row.innerHTML =
       '<div class="entry-top">' +
-        '<input type="text" class="label-input" placeholder="Job / note (optional)" maxlength="60" value="' + escapeHtml(entry.label) + '">' +
+        '<input type="text" class="label-input" placeholder="Enter Job/work # (G-12345)" maxlength="60" value="' + escapeHtml(entry.label) + '">' +
         '<button type="button" class="icon-btn delete-btn" aria-label="Delete shift">\u2715</button>' +
       '</div>' +
       '<div class="entry-times">' +
