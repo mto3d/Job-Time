@@ -239,6 +239,28 @@
   .totals-label{ font-size: 13px; color: var(--ink-soft); }
   .totals-value{ font-family: var(--font-mono); font-size: 20px; font-weight:700; }
   .totals-value-sm{ font-family: var(--font-mono); font-size: 13.5px; color: var(--ink-soft); }
+	
+  .btn-save{
+    display:block;
+    width:100%;
+    margin-top: 14px;
+    padding: 12px 16px;
+    min-height: 46px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: var(--amber);
+    color: var(--amber-ink);
+    font-family: inherit;
+    font-size: 14.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.05s ease, background 0.15s ease;
+  }
+  .btn-save:active{ transform: scale(0.97); }
+  .btn-save.saved{
+    background: var(--moss);
+    color: #fff;
+  }
 
   .footnote{
     text-align:center;
@@ -286,6 +308,8 @@
     </section>
 	
     <p class="footnote" id="storageNote"></p>
+
+	<button type="button" id="forceSaveBtn" class="btn-save">Save now</button>
   </div>
   
 <script>
@@ -436,7 +460,22 @@
     entries = defaultEntries();
     callback();
   }
-
+	
+   function forceSaveNow(){
+    clearTimeout(saveTimer);
+    if(hasClaudeStorage()){
+      window.storage.set('breaks', JSON.stringify(breaks), false).catch(function(e){ console.error('force save breaks failed', e); });
+      window.storage.set('entries', JSON.stringify(entries), false).catch(function(e){ console.error('force save entries failed', e); });
+      return true;
+    }
+    if(hasLocalStorage()){
+      try{ window.localStorage.setItem(LS_BREAKS_KEY, JSON.stringify(breaks)); }catch(e){ console.error('force local save breaks failed', e); }
+      try{ window.localStorage.setItem(LS_ENTRIES_KEY, JSON.stringify(entries)); }catch(e){ console.error('force local save entries failed', e); }
+      return true;
+    }
+    return false;
+  }
+	
   // ---------- time input formatting ----------
   function autoFormatTime(inp){
     var digits = inp.value.replace(/\D/g,'').slice(0,4);
@@ -618,7 +657,22 @@
     var firstInput = el.querySelector('.label-input');
     if(firstInput) firstInput.focus();
   });
-
+	
+  // ---------- "Save now" button wiring ----------
+  var forceSaveBtn = document.getElementById('forceSaveBtn');
+  if(forceSaveBtn){
+    forceSaveBtn.addEventListener('click', function(){
+      var ok = forceSaveNow();
+      forceSaveBtn.textContent = ok ? 'Saved \u2713' : 'Can\u2019t save here';
+      forceSaveBtn.classList.toggle('saved', ok);
+      clearTimeout(forceSaveBtn._resetTimer);
+      forceSaveBtn._resetTimer = setTimeout(function(){
+        forceSaveBtn.textContent = 'Save now';
+        forceSaveBtn.classList.remove('saved');
+      }, 1500);
+    });
+  }
+	
   // ---------- init ----------
   loadState(function(){
     breaks.forEach(function(b){ breaksListEl.appendChild(createBreakRowEl(b)); });
