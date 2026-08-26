@@ -381,23 +381,15 @@
       .replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  // ---------- storage ----------
-  // Tier 1: localStorage — the browser's own on-device storage, used when
-  //         this file is saved and opened directly (offline, outside
-  //         Claude, on iOS or Android). This is what makes entries survive
-  //         closing the tab/app.
-  // Tier 2: in-memory only, if a browser is actively blocking storage
-  //         (e.g. private browsing) — still works as a calculator, just
-  //         won't remember entries after the tab closes.
+  // ---------- storage (localStorage) ----------
+  // Saves to the browser's own on-device storage so entries survive closing
+  // the tab/app. Falls back to in-memory only if a browser is actively
+  // blocking storage (e.g. private/incognito mode) — the calculator still
+  // works then, it just won't remember entries after the tab closes.
+
   var LS_BREAKS_KEY = 'shiftlog_breaks_v1';
   var LS_ENTRIES_KEY = 'shiftlog_entries_v1';
 
-  function hasClaudeStorage(){
-    return typeof window.storage !== 'undefined'
-      && window.storage
-      && typeof window.storage.get === 'function'
-      && typeof window.storage.set === 'function';
-  }
   function hasLocalStorage(){
     try{
       var k = '__shiftlog_probe__';
@@ -409,41 +401,15 @@
 
   var saveTimer = null;
   function scheduleSave(){
-    if(hasClaudeStorage()){
-      clearTimeout(saveTimer);
-      saveTimer = setTimeout(function(){
-        try{ window.storage.set('breaks', JSON.stringify(breaks), false); }catch(e){ console.error('save breaks failed', e); }
-        try{ window.storage.set('entries', JSON.stringify(entries), false); }catch(e){ console.error('save entries failed', e); }
-      }, 350);
-      return;
-    }
-    if(hasLocalStorage()){
-      clearTimeout(saveTimer);
-      saveTimer = setTimeout(function(){
-        try{ window.localStorage.setItem(LS_BREAKS_KEY, JSON.stringify(breaks)); }catch(e){ console.error('local save breaks failed', e); }
-        try{ window.localStorage.setItem(LS_ENTRIES_KEY, JSON.stringify(entries)); }catch(e){ console.error('local save entries failed', e); }
-      }, 350);
-      return;
-    }
-    // neither storage tier available — stays in-memory only for this session
+    if(!hasLocalStorage()) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function(){
+      try{ window.localStorage.setItem(LS_BREAKS_KEY, JSON.stringify(breaks)); }catch(e){ console.error('local save breaks failed', e); }
+      try{ window.localStorage.setItem(LS_ENTRIES_KEY, JSON.stringify(entries)); }catch(e){ console.error('local save entries failed', e); }
+    }, 350);
   }
 
   function loadState(callback){
-    if(hasClaudeStorage()){
-      var pending = 2;
-      var done = function(){ pending--; if(pending<=0) callback(); };
-      window.storage.get('breaks', false).then(function(res){
-        try{ breaks = (res && res.value) ? JSON.parse(res.value) : defaultBreaks(); }
-        catch(e){ breaks = defaultBreaks(); }
-        done();
-      }).catch(function(){ breaks = defaultBreaks(); done(); });
-      window.storage.get('entries', false).then(function(res){
-        try{ entries = (res && res.value) ? JSON.parse(res.value) : defaultEntries(); }
-        catch(e){ entries = defaultEntries(); }
-        done();
-      }).catch(function(){ entries = defaultEntries(); done(); });
-      return;
-    }
     if(hasLocalStorage()){
       try{
         var savedBreaks = window.localStorage.getItem(LS_BREAKS_KEY);
@@ -463,11 +429,6 @@
 	
    function forceSaveNow(){
     clearTimeout(saveTimer);
-    if(hasClaudeStorage()){
-      window.storage.set('breaks', JSON.stringify(breaks), false).catch(function(e){ console.error('force save breaks failed', e); });
-      window.storage.set('entries', JSON.stringify(entries), false).catch(function(e){ console.error('force save entries failed', e); });
-      return true;
-    }
     if(hasLocalStorage()){
       try{ window.localStorage.setItem(LS_BREAKS_KEY, JSON.stringify(breaks)); }catch(e){ console.error('force local save breaks failed', e); }
       try{ window.localStorage.setItem(LS_ENTRIES_KEY, JSON.stringify(entries)); }catch(e){ console.error('force local save entries failed', e); }
@@ -635,9 +596,9 @@
       var r = computeEntry(e, breaks);
       if(r){ totalNet += r.netMinutes; totalDeducted += r.deducted; }
     });
-    totalWorkedEl.textContent = fmtHM(totalNet);
-    totalDecimalEl.textContent = fmtDecimal(totalNet) + ' hrs';
-    totalBreaksEl.textContent = totalDeducted + 'm';
+    if(totalWorkedEl) totalWorkedEl.textContent = fmtHM(totalNet);
+    if(totalDecimalEl) totalDecimalEl.textContent = fmtDecimal(totalNet) + ' hrs';
+    if(totalBreaksEl) totalBreaksEl.textContent = totalDeducted + 'm';
   }
 
   // ---------- add buttons ----------
@@ -680,11 +641,9 @@
     updateAllRowsComputed();
     updateTotals();
     maybeShowEmptyHint();
-    storageNoteEl.textContent = hasClaudeStorage()
-      ? 'Entries save automatically and will be here next time you open this in Claude.'
-      : (hasLocalStorage()
-        ? 'Entries are saved on this device \u2014 reopen this same file (or its Home Screen icon) to see them again.'
-        : 'This browser is blocking saved data (e.g. private browsing) \u2014 entries won\u2019t be remembered after you close this tab.');
+    storageNoteEl.textContent = hasLocalStorage()
+      ? 'Entries are saved on this device'
+      : 'This browser is blocking saved data (e.g. private browsing) \u2014 entries won\u2019t be remembered after you close this.';
   });
 })();
 </script>
